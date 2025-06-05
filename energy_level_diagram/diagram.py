@@ -5,7 +5,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 
-@dataclass
+@dataclass(eq=False)
 class Level:
     """Represents a single energy level."""
 
