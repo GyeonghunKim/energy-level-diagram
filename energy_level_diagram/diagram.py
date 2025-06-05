@@ -22,6 +22,7 @@ class Column:
     levels: List[Level] = field(default_factory=list)
     width: float = 0.5
     separation: float = 1.0
+    label: Optional[str] = None
 
     def add_level(self, energy: float, label: Optional[str] = None) -> Level:
         """Append a level to this column and return it."""
@@ -39,6 +40,8 @@ class Diagram:
     auto_regulation: bool = True
     # store explicit connections between levels
     _connections: List[Tuple[Level, Level]] = field(default_factory=list, init=False)
+    # store vertical arrows between two levels
+    _arrows: List[Tuple[Level, Level, float, Optional[str]]] = field(default_factory=list, init=False)
 
     def add_column(
         self,
@@ -46,10 +49,11 @@ class Diagram:
         *,
         width: Optional[float] = None,
         separation: Optional[float] = None,
+        label: Optional[str] = None,
     ) -> Column:
         """Create a column, optionally with initial levels, and return it."""
 
-        column = Column(width=width or 0.5, separation=separation or 1.0)
+        column = Column(width=width or 0.5, separation=separation or 1.0, label=label)
         if levels is not None:
             for energy in levels:
                 column.add_level(energy)
@@ -60,6 +64,17 @@ class Diagram:
         """Register a dashed connection between two levels."""
 
         self._connections.append((level_a, level_b))
+
+    def add_vertical_arrow(
+        self,
+        level_a: Level,
+        level_b: Level,
+        x: float,
+        label: Optional[str] = None,
+    ) -> None:
+        """Add a vertical arrow between two levels at a fixed x position."""
+
+        self._arrows.append((level_a, level_b, x, label))
 
     def _compute_column_positions(self) -> List[float]:
         """Return the x coordinate for the start of each column."""
@@ -84,7 +99,14 @@ class Diagram:
         span = max_level - min_level or 1.0
         return [(e - min_level) / span for e in energies]
 
-    def plot(self, connect: bool = False) -> None:
+    def plot(
+        self,
+        connect: bool = False,
+        *,
+        show_level_name: bool = False,
+        show_column_name: bool = False,
+        debug_mode: bool = False,
+    ) -> None:
         fig, ax = plt.subplots()
         positions = self._compute_column_positions()
 
@@ -95,13 +117,43 @@ class Diagram:
             ys = self._regulate_levels(energies)
             for lvl, y in zip(col.levels, ys):
                 ax.hlines(y, x, x + col.width, colors="black")
+                if show_level_name and lvl.label:
+                    ax.text(
+                        x + col.width / 2,
+                        y + 0.02,
+                        lvl.label,
+                        ha="center",
+                        va="bottom",
+                    )
                 level_coords[lvl] = (x, x + col.width, y)
+            if show_column_name and col.label:
+                ax.text(
+                    x + col.width / 2,
+                    0,
+                    col.label,
+                    ha="center",
+                    va="top",
+                    transform=ax.get_xaxis_transform(),
+                )
 
         for left, right in self._connections:
             if left in level_coords and right in level_coords:
                 lx0, lx1, y0 = level_coords[left]
                 rx0, rx1, y1 = level_coords[right]
                 ax.plot([lx1, rx0], [y0, y1], "--", color="gray")
+
+        for start, end, x_pos, label in self._arrows:
+            if start in level_coords and end in level_coords:
+                _, _, y0 = level_coords[start]
+                _, _, y1 = level_coords[end]
+                ax.annotate(
+                    "",
+                    xy=(x_pos, y1),
+                    xytext=(x_pos, y0),
+                    arrowprops={"arrowstyle": "<->", "color": "black"},
+                )
+                if label:
+                    ax.text(x_pos + 0.05, (y0 + y1) / 2, label, va="center", ha="left")
 
         if connect and len(self.columns) > 1 and not self._connections:
             # default behaviour: connect every level of adjacent columns
@@ -115,8 +167,14 @@ class Diagram:
                             rx0, rx1, y1 = level_coords[r]
                             ax.plot([lx1, rx0], [y0, y1], "--", color="gray")
 
-        ax.set_xlabel("Column")
-        ax.set_ylabel("Energy")
+        if debug_mode:
+            ax.set_xlabel("Column")
+            ax.set_ylabel("Energy")
+        else:
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            ax.set_xticks([])
+            ax.set_yticks([])
         ax.set_title("Energy Level Diagram")
         plt.show()
 
