@@ -1,61 +1,119 @@
-"""Energy level diagram plotting utilities."""
+"""Classes to build and plot energy level diagrams."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
+
 import matplotlib.pyplot as plt
 
 @dataclass
-class Column:
-    levels: List[float]
-    width: Optional[float] = None
-    separation: Optional[float] = None
+class Level:
+    """Represents a single energy level."""
+
+    energy: float
+    label: Optional[str] = None
+    # Reference to parent column, populated when added to a column
+    column: Optional["Column"] = field(default=None, repr=False, init=False)
+
 
 @dataclass
-class EnergyLevelDiagram:
+class Column:
+    """A vertical column containing multiple :class:`Level` objects."""
+
+    levels: List[Level] = field(default_factory=list)
+    width: float = 0.5
+    separation: float = 1.0
+
+    def add_level(self, energy: float, label: Optional[str] = None) -> Level:
+        """Append a level to this column and return it."""
+
+        level = Level(energy, label)
+        level.column = self
+        self.levels.append(level)
+        return level
+
+@dataclass
+class Diagram:
+    """Container for columns composing the energy level diagram."""
+
     columns: List[Column] = field(default_factory=list)
     auto_regulation: bool = True
+    # store explicit connections between levels
+    _connections: List[Tuple[Level, Level]] = field(default_factory=list, init=False)
 
-    def add_column(self, levels: List[float], width: Optional[float] = None, separation: Optional[float] = None) -> None:
-        self.columns.append(Column(levels=levels, width=width, separation=separation))
+    def add_column(
+        self,
+        levels: Optional[Iterable[float]] = None,
+        *,
+        width: Optional[float] = None,
+        separation: Optional[float] = None,
+    ) -> Column:
+        """Create a column, optionally with initial levels, and return it."""
+
+        column = Column(width=width or 0.5, separation=separation or 1.0)
+        if levels is not None:
+            for energy in levels:
+                column.add_level(energy)
+        self.columns.append(column)
+        return column
+
+    def connect(self, level_a: Level, level_b: Level) -> None:
+        """Register a dashed connection between two levels."""
+
+        self._connections.append((level_a, level_b))
 
     def _compute_column_positions(self) -> List[float]:
-        positions = []
+        """Return the x coordinate for the start of each column."""
+
+        positions: List[float] = []
         current_pos = 0.0
         for col in self.columns:
             positions.append(current_pos)
-            sep = col.separation if col.separation is not None else 1.0
-            if col.width is not None:
-                current_pos += col.width
-            current_pos += sep
+            current_pos += col.width
+            current_pos += col.separation
         return positions
 
-    def _regulate_levels(self, levels: List[float]) -> List[float]:
-        if not levels:
+    def _regulate_levels(self, energies: List[float]) -> List[float]:
+        """Optionally normalise a list of energies for plotting."""
+
+        if not energies:
             return []
         if not self.auto_regulation:
-            return levels
-        # Normalize levels to start at 0 and scale to unit spacing
-        min_level = min(levels)
-        max_level = max(levels)
+            return energies
+        min_level = min(energies)
+        max_level = max(energies)
         span = max_level - min_level or 1.0
-        return [(lvl - min_level) / span for lvl in levels]
+        return [(e - min_level) / span for e in energies]
 
     def plot(self, connect: bool = False) -> None:
         fig, ax = plt.subplots()
         positions = self._compute_column_positions()
 
-        for idx, (col, x) in enumerate(zip(self.columns, positions)):
-            levels = self._regulate_levels(col.levels)
-            width = col.width if col.width is not None else 0.5
-            for level in levels:
-                ax.hlines(level, x, x + width, colors='black')
-            if connect and idx > 0:
-                prev_x = positions[idx - 1]
-                prev_col = self.columns[idx - 1]
-                prev_levels = self._regulate_levels(prev_col.levels)
-                for y0 in prev_levels:
-                    for y1 in levels:
-                        ax.plot([prev_x + width, x], [y0, y1], '--', color='gray')
+        level_coords: Dict[Level, Tuple[float, float, float]] = {}
+
+        for col, x in zip(self.columns, positions):
+            energies = [lvl.energy for lvl in col.levels]
+            ys = self._regulate_levels(energies)
+            for lvl, y in zip(col.levels, ys):
+                ax.hlines(y, x, x + col.width, colors="black")
+                level_coords[lvl] = (x, x + col.width, y)
+
+        for left, right in self._connections:
+            if left in level_coords and right in level_coords:
+                lx0, lx1, y0 = level_coords[left]
+                rx0, rx1, y1 = level_coords[right]
+                ax.plot([lx1, rx0], [y0, y1], "--", color="gray")
+
+        if connect and len(self.columns) > 1 and not self._connections:
+            # default behaviour: connect every level of adjacent columns
+            for idx in range(1, len(self.columns)):
+                left_col = self.columns[idx - 1]
+                right_col = self.columns[idx]
+                for l in left_col.levels:
+                    for r in right_col.levels:
+                        if l in level_coords and r in level_coords:
+                            lx0, lx1, y0 = level_coords[l]
+                            rx0, rx1, y1 = level_coords[r]
+                            ax.plot([lx1, rx0], [y0, y1], "--", color="gray")
 
         ax.set_xlabel("Column")
         ax.set_ylabel("Energy")
