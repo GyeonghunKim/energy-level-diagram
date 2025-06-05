@@ -1,5 +1,5 @@
 """Energy Level Diagram package."""
 
-from .diagram import EnergyLevelDiagram, Column
+from .diagram import Diagram, Column, Level
 
-__all__ = ["EnergyLevelDiagram", "Column"]
+__all__ = ["Diagram", "Column", "Level"]

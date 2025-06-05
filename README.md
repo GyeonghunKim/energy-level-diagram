@@ -5,10 +5,11 @@ A simple library to plot energy level diagrams using Matplotlib. It supports mul
 ## Example
 
 ```python
-from energy_level_diagram import EnergyLevelDiagram
+from energy_level_diagram import Diagram
 
-eld = EnergyLevelDiagram(auto_regulation=True)
-eld.add_column([0, 1, 2])
-eld.add_column([0.5, 1.5, 2.5])
-eld.plot(connect=True)
+diagram = Diagram(auto_regulation=True)
+col_a = diagram.add_column([0, 1, 2])
+col_b = diagram.add_column([0.5, 1.5, 2.5])
+diagram.connect(col_a.levels[1], col_b.levels[0])
+diagram.plot()
 ```
