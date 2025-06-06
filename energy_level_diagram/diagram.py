@@ -159,10 +159,10 @@ class Diagram:
                 ax.hlines(y, x, x + col.width, colors="black")
                 if show_level_name and lvl.label:
                     ax.text(
-                        x + col.width / 2,
+                        x,
                         y + 0.02,
                         lvl.label,
-                        ha="center",
+                        ha="left",
                         va="bottom",
                     )
                 level_coords[lvl] = (x, x + col.width, y)
