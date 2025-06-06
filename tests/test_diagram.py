@@ -49,6 +49,13 @@ def test_connections_and_arrows():
     assert diagram._arrows == [(col1.levels[1], col2.levels[0], 0.5, "test")]
 
 
+def test_add_vertical_broken_arrow():
+    diagram = Diagram()
+    col = diagram.add_column([0, 1])
+    diagram.add_vertical_broken_arrow(col.levels[0], col.levels[1], x=0.5, label="gap", break_position=0.6)
+    assert diagram._broken_arrows == [(col.levels[0], col.levels[1], 0.5, "gap", 0.6)]
+
+
 def test_plot_invokes_matplotlib(monkeypatch):
     diagram = Diagram()
     diagram.add_column([0, 1])
@@ -60,4 +67,23 @@ def test_plot_invokes_matplotlib(monkeypatch):
 
     monkeypatch.setattr(plt, "show", fake_show)
     diagram.plot(connect=True, show_level_name=True, show_column_name=True, debug_mode=True)
+    assert called.get('show')
+
+
+def test_plot_with_padding(monkeypatch):
+    diagram = Diagram()
+    diagram.add_column([0, 1])
+    called = {}
+
+    def fake_show():
+        called['show'] = True
+
+    monkeypatch.setattr(plt, "show", fake_show)
+    diagram.plot(
+        padding_left=0.1,
+        padding_right=0.2,
+        padding_top=0.3,
+        padding_bottom=0.4,
+        column_label_gap=0.2,
+    )
     assert called.get('show')

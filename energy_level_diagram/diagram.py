@@ -46,6 +46,11 @@ class Diagram:
     _connections: List[Tuple[Level, Level]] = field(default_factory=list, init=False)
     # store vertical arrows between two levels
     _arrows: List[Tuple[Level, Level, float, Optional[str]]] = field(default_factory=list, init=False)
+    # store broken vertical arrows
+    _broken_arrows: List[Tuple[Level, Level, float, Optional[str], float]] = field(
+        default_factory=list,
+        init=False,
+    )
 
     def add_column(
         self,
@@ -80,6 +85,18 @@ class Diagram:
 
         self._arrows.append((level_a, level_b, x, label))
 
+    def add_vertical_broken_arrow(
+        self,
+        level_a: Level,
+        level_b: Level,
+        x: float,
+        label: Optional[str] = None,
+        break_position: float = 0.5,
+    ) -> None:
+        """Add a broken vertical arrow between two levels at a fixed x position."""
+
+        self._broken_arrows.append((level_a, level_b, x, label, break_position))
+
     def _compute_column_positions(self) -> List[float]:
         """Return the x coordinate for the start of each column."""
 
@@ -111,8 +128,19 @@ class Diagram:
         show_column_name: bool = False,
         debug_mode: bool = False,
         padding: float = 0.05,
+        padding_left: Optional[float] = None,
+        padding_right: Optional[float] = None,
+        padding_top: Optional[float] = None,
+        padding_bottom: Optional[float] = None,
+        column_label_gap: float = 0.1,
     ) -> Tuple[plt.Figure, plt.Axes]:
-        """Plot the diagram and return the figure and axes objects."""
+        """Plot the diagram and return the figure and axes objects.
+
+        Parameters controlling padding can be provided either via the
+        general ``padding`` argument or individually for each side. The
+        ``column_label_gap`` argument sets the space between the lowest
+        level and the column labels.
+        """
 
         fig, ax = plt.subplots()
         positions = self._compute_column_positions()
@@ -139,7 +167,7 @@ class Diagram:
                     )
                 level_coords[lvl] = (x, x + col.width, y)
 
-        label_y = min_level_y - 0.05
+        label_y = min_level_y - column_label_gap
 
         for col, x, ys in column_data:
             if show_column_name and col.label:
@@ -167,6 +195,23 @@ class Diagram:
                     xytext=(x_pos, y0),
                     arrowprops={"arrowstyle": "<->", "color": "black"},
                 )
+                if label:
+                    ax.text(x_pos + 0.05, (y0 + y1) / 2, label, va="center", ha="left")
+
+        for start, end, x_pos, label, break_pos in self._broken_arrows:
+            if start in level_coords and end in level_coords:
+                _, _, y0 = level_coords[start]
+                _, _, y1 = level_coords[end]
+                break_y = y0 + (y1 - y0) * break_pos
+                ax.annotate(
+                    "",
+                    xy=(x_pos, y1),
+                    xytext=(x_pos, y0),
+                    arrowprops={"arrowstyle": "<->", "color": "black"},
+                )
+                gap = (y1 - y0) * 0.05
+                ax.plot([x_pos, x_pos], [break_y - gap, break_y + gap], color="white", linewidth=3)
+                ax.text(x_pos + 0.02, break_y, "~~", ha="left", va="center")
                 if label:
                     ax.text(x_pos + 0.05, (y0 + y1) / 2, label, va="center", ha="left")
 
@@ -206,8 +251,12 @@ class Diagram:
 
         if bbox is not None:
             data_bbox = bbox.transformed(ax.transData.inverted())
-            ax.set_xlim(data_bbox.xmin - padding, data_bbox.xmax + padding)
-            ax.set_ylim(data_bbox.ymin - padding, data_bbox.ymax + padding)
+            left = padding_left if padding_left is not None else padding
+            right = padding_right if padding_right is not None else padding
+            bottom = padding_bottom if padding_bottom is not None else padding
+            top = padding_top if padding_top is not None else padding
+            ax.set_xlim(data_bbox.xmin - left, data_bbox.xmax + right)
+            ax.set_ylim(data_bbox.ymin - bottom, data_bbox.ymax + top)
 
         ax.set_title(self.label or "Energy Level Diagram")
         plt.show()
