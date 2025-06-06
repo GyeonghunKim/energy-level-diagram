@@ -38,6 +38,7 @@ class Diagram:
 
     columns: List[Column] = field(default_factory=list)
     auto_regulation: bool = True
+    label: Optional[str] = None
     # store explicit connections between levels
     _connections: List[Tuple[Level, Level]] = field(default_factory=list, init=False)
     # store vertical arrows between two levels
@@ -106,7 +107,7 @@ class Diagram:
         show_level_name: bool = False,
         show_column_name: bool = False,
         debug_mode: bool = False,
-    ) -> None:
+    ) -> Tuple[plt.Figure, plt.Axes]:
         fig, ax = plt.subplots()
         positions = self._compute_column_positions()
 
@@ -126,14 +127,15 @@ class Diagram:
                         va="bottom",
                     )
                 level_coords[lvl] = (x, x + col.width, y)
+
             if show_column_name and col.label:
+                col_center = sum(ys) / len(ys) if ys else 0.5
                 ax.text(
                     x + col.width / 2,
-                    0,
+                    col_center,
                     col.label,
                     ha="center",
-                    va="top",
-                    transform=ax.get_xaxis_transform(),
+                    va="center",
                 )
 
         for left, right in self._connections:
@@ -175,6 +177,10 @@ class Diagram:
             ax.set_ylabel("")
             ax.set_xticks([])
             ax.set_yticks([])
-        ax.set_title("Energy Level Diagram")
+        ax.relim()
+        ax.autoscale_view()
+        ax.margins(0.1)
+        ax.set_title(self.label or "Energy Level Diagram")
         plt.show()
+        return fig, ax
 
