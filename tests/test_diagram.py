@@ -46,14 +46,23 @@ def test_connections_and_arrows():
     diagram.connect(col1.levels[0], col2.levels[1])
     diagram.add_vertical_arrow(col1.levels[1], col2.levels[0], x=0.5, label="test")
     assert diagram._connections == [(col1.levels[0], col2.levels[1])]
-    assert diagram._arrows == [(col1.levels[1], col2.levels[0], 0.5, "test")]
+    assert diagram._arrows == [(col1.levels[1], col2.levels[0], 0.5, "test", "black")]
 
 
 def test_add_vertical_broken_arrow():
     diagram = Diagram()
     col = diagram.add_column([0, 1])
     diagram.add_vertical_broken_arrow(col.levels[0], col.levels[1], x=0.5, label="gap", break_position=0.6)
-    assert diagram._broken_arrows == [(col.levels[0], col.levels[1], 0.5, "gap", 0.6)]
+    assert diagram._broken_arrows == [(col.levels[0], col.levels[1], 0.5, "gap", 0.6, "black")]
+
+
+def test_add_transition_and_emission():
+    diagram = Diagram()
+    col = diagram.add_column([0, 1, 2])
+    diagram.add_transition(col.levels[2], col.levels[1], x=0.3)
+    diagram.add_spontaneous_emission(col.levels[1], col.levels[0], x=0.4, color="purple")
+    assert diagram._transitions == [(col.levels[2], col.levels[1], 0.3, None, "blue")]
+    assert diagram._emissions == [(col.levels[1], col.levels[0], 0.4, None, "purple")]
 
 
 def test_plot_invokes_matplotlib(monkeypatch):

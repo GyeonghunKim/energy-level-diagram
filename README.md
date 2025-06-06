@@ -10,6 +10,8 @@ with the `padding` argument or per-side using `padding_left`,
 `padding_right`, `padding_top` and `padding_bottom`. The gap between the lowest
 level and the column labels is controlled by `column_label_gap`.
 
+Transition arrows and spontaneous emission arrows can be drawn with configurable colours.
+
 ## Example scripts
 
 The `examples` directory contains scripts demonstrating typical usage. You can run them directly with Python to see how the diagram API works.
@@ -18,6 +20,7 @@ The `examples` directory contains scripts demonstrating typical usage. You can r
 python examples/basic_usage.py
 python examples/vertical_arrow.py
 python examples/broken_arrow.py
+python examples/transitions_and_emission.py
 ```
 
 These scripts create diagrams using different features of the library but do not display their resulting plots here.
