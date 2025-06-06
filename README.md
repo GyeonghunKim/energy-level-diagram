@@ -13,3 +13,14 @@ col_b = diagram.add_column([0.5, 1.5, 2.5])
 diagram.connect(col_a.levels[1], col_b.levels[0])
 diagram.plot()
 ```
+
+## Example scripts
+
+The `examples` directory contains scripts demonstrating typical usage. You can run them directly with Python to see how the diagram API works.
+
+```
+python examples/basic_usage.py
+python examples/vertical_arrow.py
+```
+
+These scripts create diagrams using different features of the library but do not display their resulting plots here.
