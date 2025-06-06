@@ -3,7 +3,10 @@
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from matplotlib.transforms import Bbox
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 @dataclass(eq=False)
 class Level:
@@ -107,15 +110,23 @@ class Diagram:
         show_level_name: bool = False,
         show_column_name: bool = False,
         debug_mode: bool = False,
+        padding: float = 0.05,
     ) -> Tuple[plt.Figure, plt.Axes]:
+        """Plot the diagram and return the figure and axes objects."""
+
         fig, ax = plt.subplots()
         positions = self._compute_column_positions()
 
         level_coords: Dict[Level, Tuple[float, float, float]] = {}
+        column_data: List[Tuple[Column, float, List[float]]] = []
+        min_level_y = float("inf")
 
         for col, x in zip(self.columns, positions):
             energies = [lvl.energy for lvl in col.levels]
             ys = self._regulate_levels(energies)
+            column_data.append((col, x, ys))
+            if ys:
+                min_level_y = min(min_level_y, min(ys))
             for lvl, y in zip(col.levels, ys):
                 ax.hlines(y, x, x + col.width, colors="black")
                 if show_level_name and lvl.label:
@@ -128,14 +139,16 @@ class Diagram:
                     )
                 level_coords[lvl] = (x, x + col.width, y)
 
+        label_y = min_level_y - 0.05
+
+        for col, x, ys in column_data:
             if show_column_name and col.label:
-                col_center = sum(ys) / len(ys) if ys else 0.5
                 ax.text(
                     x + col.width / 2,
-                    col_center,
+                    label_y,
                     col.label,
                     ha="center",
-                    va="center",
+                    va="top",
                 )
 
         for left, right in self._connections:
@@ -177,9 +190,25 @@ class Diagram:
             ax.set_ylabel("")
             ax.set_xticks([])
             ax.set_yticks([])
-        ax.relim()
-        ax.autoscale_view()
-        ax.margins(0.1)
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        bbox: Optional[Bbox] = None
+        for artist in ax.get_children():
+            if not artist.get_visible() or not hasattr(artist, "get_window_extent"):
+                continue
+            try:
+                artist_bbox = artist.get_window_extent(renderer)
+            except Exception:
+                continue
+            if not np.isfinite(artist_bbox.extents).all():
+                continue
+            bbox = artist_bbox if bbox is None else Bbox.union([bbox, artist_bbox])
+
+        if bbox is not None:
+            data_bbox = bbox.transformed(ax.transData.inverted())
+            ax.set_xlim(data_bbox.xmin - padding, data_bbox.xmax + padding)
+            ax.set_ylim(data_bbox.ymin - padding, data_bbox.ymax + padding)
+
         ax.set_title(self.label or "Energy Level Diagram")
         plt.show()
         return fig, ax
