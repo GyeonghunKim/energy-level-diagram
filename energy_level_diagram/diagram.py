@@ -45,12 +45,16 @@ class Diagram:
     # store explicit connections between levels
     _connections: List[Tuple[Level, Level]] = field(default_factory=list, init=False)
     # store vertical arrows between two levels
-    _arrows: List[Tuple[Level, Level, float, Optional[str]]] = field(default_factory=list, init=False)
+    _arrows: List[Tuple[Level, Level, float, Optional[str], str]] = field(default_factory=list, init=False)
     # store broken vertical arrows
-    _broken_arrows: List[Tuple[Level, Level, float, Optional[str], float]] = field(
+    _broken_arrows: List[Tuple[Level, Level, float, Optional[str], float, str]] = field(
         default_factory=list,
         init=False,
     )
+    # store transition arrows
+    _transitions: List[Tuple[Level, Level, float, Optional[str], str]] = field(default_factory=list, init=False)
+    # store spontaneous emission arrows
+    _emissions: List[Tuple[Level, Level, float, Optional[str], str]] = field(default_factory=list, init=False)
 
     def add_column(
         self,
@@ -80,10 +84,11 @@ class Diagram:
         level_b: Level,
         x: float,
         label: Optional[str] = None,
+        color: str = "black",
     ) -> None:
         """Add a vertical arrow between two levels at a fixed x position."""
 
-        self._arrows.append((level_a, level_b, x, label))
+        self._arrows.append((level_a, level_b, x, label, color))
 
     def add_vertical_broken_arrow(
         self,
@@ -92,10 +97,35 @@ class Diagram:
         x: float,
         label: Optional[str] = None,
         break_position: float = 0.5,
+        color: str = "black",
     ) -> None:
         """Add a broken vertical arrow between two levels at a fixed x position."""
 
-        self._broken_arrows.append((level_a, level_b, x, label, break_position))
+        self._broken_arrows.append((level_a, level_b, x, label, break_position, color))
+
+    def add_transition(
+        self,
+        level_a: Level,
+        level_b: Level,
+        x: float,
+        label: Optional[str] = None,
+        color: str = "blue",
+    ) -> None:
+        """Add a one-way transition arrow between two levels."""
+
+        self._transitions.append((level_a, level_b, x, label, color))
+
+    def add_spontaneous_emission(
+        self,
+        level_a: Level,
+        level_b: Level,
+        x: float,
+        label: Optional[str] = None,
+        color: str = "red",
+    ) -> None:
+        """Add a spontaneous emission arrow between two levels."""
+
+        self._emissions.append((level_a, level_b, x, label, color))
 
     def _compute_column_positions(self) -> List[float]:
         """Return the x coordinate for the start of each column."""
@@ -185,7 +215,7 @@ class Diagram:
                 rx0, rx1, y1 = level_coords[right]
                 ax.plot([lx1, rx0], [y0, y1], "--", color="gray")
 
-        for start, end, x_pos, label in self._arrows:
+        for start, end, x_pos, label, color in self._arrows:
             if start in level_coords and end in level_coords:
                 _, _, y0 = level_coords[start]
                 _, _, y1 = level_coords[end]
@@ -193,12 +223,12 @@ class Diagram:
                     "",
                     xy=(x_pos, y1),
                     xytext=(x_pos, y0),
-                    arrowprops={"arrowstyle": "<->", "color": "black"},
+                    arrowprops={"arrowstyle": "<->", "color": color},
                 )
                 if label:
                     ax.text(x_pos + 0.05, (y0 + y1) / 2, label, va="center", ha="left")
 
-        for start, end, x_pos, label, break_pos in self._broken_arrows:
+        for start, end, x_pos, label, break_pos, color in self._broken_arrows:
             if start in level_coords and end in level_coords:
                 _, _, y0 = level_coords[start]
                 _, _, y1 = level_coords[end]
@@ -207,11 +237,37 @@ class Diagram:
                     "",
                     xy=(x_pos, y1),
                     xytext=(x_pos, y0),
-                    arrowprops={"arrowstyle": "<->", "color": "black"},
+                    arrowprops={"arrowstyle": "<->", "color": color},
                 )
                 gap = (y1 - y0) * 0.05
                 ax.plot([x_pos, x_pos], [break_y - gap, break_y + gap], color="white", linewidth=3)
                 ax.text(x_pos + 0.02, break_y, "~~", ha="left", va="center")
+                if label:
+                    ax.text(x_pos + 0.05, (y0 + y1) / 2, label, va="center", ha="left")
+
+        for start, end, x_pos, label, color in self._transitions:
+            if start in level_coords and end in level_coords:
+                _, _, y0 = level_coords[start]
+                _, _, y1 = level_coords[end]
+                ax.annotate(
+                    "",
+                    xy=(x_pos, y1),
+                    xytext=(x_pos, y0),
+                    arrowprops={"arrowstyle": "-|>", "color": color},
+                )
+                if label:
+                    ax.text(x_pos + 0.05, (y0 + y1) / 2, label, va="center", ha="left")
+
+        for start, end, x_pos, label, color in self._emissions:
+            if start in level_coords and end in level_coords:
+                _, _, y0 = level_coords[start]
+                _, _, y1 = level_coords[end]
+                ax.annotate(
+                    "",
+                    xy=(x_pos, y1),
+                    xytext=(x_pos, y0),
+                    arrowprops={"arrowstyle": "->", "color": color, "linestyle": "--"},
+                )
                 if label:
                     ax.text(x_pos + 0.05, (y0 + y1) / 2, label, va="center", ha="left")
 
